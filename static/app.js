@@ -135,10 +135,16 @@ class AudioTranslatorApp {
                 this.deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
                         console.log('Пользователь установил PWA');
+                        this.showAlert('Приложение устанавливается...', 'success');
                         this.hideInstallBanner();
+                    } else {
+                        this.showAlert('Установка отменена', 'info');
                     }
                     this.deferredPrompt = null;
                 });
+            } else {
+                // Показать инструкции для ручной установки
+                this.showManualInstallInstructions();
             }
         });
 
@@ -166,6 +172,33 @@ class AudioTranslatorApp {
         if (banner) {
             banner.style.display = 'none';
         }
+    }
+
+    showManualInstallInstructions() {
+        const instructions = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center;">
+                <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; margin: 20px;">
+                    <h3 style="margin-top: 0; color: #333;">Установка приложения</h3>
+                    <div style="line-height: 1.6; color: #555;">
+                        <p><strong>Chrome/Edge:</strong> Меню (⋮) → "Установить приложение"</p>
+                        <p><strong>Firefox:</strong> Адресная строка → иконка "Установить"</p>
+                        <p><strong>Safari (iOS):</strong> Поделиться → "На экран Домой"</p>
+                        <p><strong>Samsung Internet:</strong> Меню → "Добавить страницу в"</p>
+                        <p style="margin-top: 20px; padding: 10px; background: #f0f8ff; border-radius: 6px; font-size: 14px;">
+                            💡 После установки приложение будет работать без браузерного интерфейса как обычная программа.
+                        </p>
+                    </div>
+                    <button onclick="this.closest('div').remove()" style="
+                        margin-top: 20px; padding: 10px 20px; background: #1f77b4; color: white; 
+                        border: none; border-radius: 6px; cursor: pointer; font-size: 16px;
+                    ">Понятно</button>
+                </div>
+            </div>
+        `;
+        
+        const modal = document.createElement('div');
+        modal.innerHTML = instructions;
+        document.body.appendChild(modal);
     }
 
     handleFolderSelect(event) {

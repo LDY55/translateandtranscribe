@@ -12,15 +12,15 @@
   "categories": ["productivity", "utilities"],
   "icons": [
     {
-      "src": "/static/icon-192.png",
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiMxZjc3YjQiLz4KPHBhdGggZD0iTTk2IDQ4QzEzMi4wMTEgNDggMTYwIDc1Ljk4OSAxNjAgMTEyQzE2MCAxNDguMDExIDEzMi4wMTEgMTc2IDk2IDE3NkM1OS45ODkgMTc2IDMyIDE0OC4wMTEgMzIgMTEyQzMyIDc1Ljk4OSA1OS45ODkgNDggOTYgNDhaIiBmaWxsPSJ3aGl0ZSIvPgo8Y2lyY2xlIGN4PSI5NiIgY3k9IjExMiIgcj0iMjQiIGZpbGw9IiMxZjc3YjQiLz4KPC9zdmc+",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/static/icon-512.png", 
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iNjQiIGZpbGw9IiMxZjc3YjQiLz4KPHBhdGggZD0iTTI1NiAxMjhDMzUyLjI5NSAxMjggNDI2LjY2NyAyMDIuMzcyIDQyNi42NjcgMjk4LjY2N0M0MjYuNjY3IDM5NC45NjEgMzUyLjI5NSA0NjkuMzMzIDI1NiA0NjkuMzMzQzE1OS43MDUgNDY5LjMzMyA4NS4zMzMzIDM5NC45NjEgODUuMzMzMyAyOTguNjY3Qzg1LjMzMzMgMjAyLjM3MiAxNTkuNzA1IDEyOCAyNTYgMTI4WiIgZmlsbD0id2hpdGUiLz4KPGNpcmNsZSBjeD0iMjU2IiBjeT0iMjk4LjY2NyIgcj0iNjQiIGZpbGw9IiMxZjc3YjQiLz4KPC9zdmc+",
+      "sizes": "512x512", 
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],

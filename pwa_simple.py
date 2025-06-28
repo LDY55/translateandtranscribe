@@ -45,11 +45,62 @@ def static_files(filename):
 
 @app.route('/api/transcribe', methods=['POST'])
 def api_transcribe():
-    """API для транскрибации (заглушка)"""
-    return jsonify({
-        "success": False,
-        "error": "Транскрибация недоступна. Установите PyTorch и Transformers: pip install torch transformers"
-    }), 400
+    """API для транскрибации"""
+    try:
+        # Попытка использования улучшенного модуля транскрибации
+        from transcription_simple import TranscriptionProcessor
+        
+        files = request.files.getlist('files')
+        if not files:
+            return jsonify({'success': False, 'message': 'Файлы не найдены'})
+        
+        def transcribe_task():
+            global transcription_status
+            transcription_status['status'] = 'processing'
+            transcription_status['results'] = []
+            
+            try:
+                processor = TranscriptionProcessor()
+                
+                for i, file in enumerate(files):
+                    if file.filename:
+                        # Сохранение временного файла
+                        temp_path = f"/tmp/{file.filename}"
+                        file.save(temp_path)
+                        
+                        # Транскрибация
+                        result = processor.transcribe_file(temp_path)
+                        
+                        transcription_status['results'].append({
+                            'filename': file.filename,
+                            'text': result['text'],
+                            'success': result['success'],
+                            'error': result.get('error', '')
+                        })
+                        
+                        transcription_status['progress'] = ((i + 1) / len(files)) * 100
+                
+                transcription_status['status'] = 'completed'
+            except Exception as e:
+                transcription_status['status'] = 'error'
+                transcription_status['error'] = str(e)
+        
+        import threading
+        thread = threading.Thread(target=transcribe_task)
+        thread.start()
+        
+        return jsonify({'success': True, 'message': 'Транскрибация запущена'})
+        
+    except ImportError as e:
+        return jsonify({
+            "success": False,
+            "error": f"Модуль транскрибации недоступен: {str(e)}. Попробуйте перезапустить приложение."
+        }), 400
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Ошибка транскрибации: {str(e)}"
+        }), 500
 
 @app.route('/api/transcription-status')
 def api_transcription_status():
