@@ -1,0 +1,83 @@
+import io
+import math
+from pathlib import Path
+
+import numpy as np
+import torch
+from pydub import AudioSegment
+from tqdm import tqdm
+from transformers import WhisperForConditionalGeneration, WhisperProcessor, pipeline
+
+# 1) Устройство и dtype
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+torch_dtype = torch.float16 if device == 'cuda' else torch.float32
+
+# 2) Загружаем модель и процессор
+model = WhisperForConditionalGeneration.from_pretrained(
+    "antony66/whisper-large-v3-russian",
+    torch_dtype=torch_dtype,
+    low_cpu_mem_usage=True,
+    use_safetensors=True,
+).to(device)
+
+processor = WhisperProcessor.from_pretrained("antony66/whisper-large-v3-russian")
+
+# 3) Настраиваем pipeline (не используется ниже, можно удалить, если не нужен)
+asr = pipeline(
+    "automatic-speech-recognition",
+    model=model,
+    tokenizer=processor.tokenizer,
+    feature_extractor=processor.feature_extractor,
+    return_timestamps=False,
+    device=device,
+    torch_dtype=torch_dtype,
+)
+
+def convert(file):
+    file = Path(file)
+
+    with open(file, "rb") as f:
+        mp3_bytes = f.read()
+    audio = AudioSegment.from_file(io.BytesIO(mp3_bytes), format="mp3")
+
+    # 4) Конвертация в моно и 16kHz
+    audio = audio.set_channels(1).set_sample_width(2).set_frame_rate(16000)
+    samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
+    samples = samples / 32768.0  # Нормализуем в диапазон [-1, 1]
+
+    sr = audio.frame_rate  # Обычно 16000
+
+    # 5) Разбиваем на чанки по 30 секунд
+    chunk_s = 30
+    chunk_sz = chunk_s * sr
+    n_chunks = math.ceil(len(samples) / chunk_sz)
+    texts = []
+
+    for i in tqdm(range(n_chunks), desc="ASR chunks"):
+        start = i * chunk_sz
+        end = min((i + 1) * chunk_sz, len(samples))
+        chunk = samples[start:end]
+        if len(chunk) == 0:
+            continue
+
+        # Подготовка входов с attention_mask
+        inputs = processor(
+            chunk,
+            return_tensors="pt",
+            sampling_rate=sr,
+            return_attention_mask=True
+        )
+        inputs = {
+            k: v.to(device=device, dtype=torch_dtype if v.dtype.is_floating_point else torch.long)
+            for k, v in inputs.items()
+        }
+
+        out = model.generate(**inputs)
+        transcription = processor.batch_decode(out, skip_special_tokens=True)[0]
+        texts.append(transcription)
+
+    # 6) Сохраняем результат
+    full_text = " ".join(texts)
+    output_path = file.with_suffix(file.suffix + ".txt")
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(full_text)
