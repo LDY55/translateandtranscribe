@@ -359,6 +359,26 @@ def api_download_transcription():
     response.headers['Content-Disposition'] = 'attachment; filename=transcription_results.txt'
     return response
 
+@app.route('/api/download-transcription/<int:index>')
+def api_download_transcription_file(index):
+    """Скачивание отдельного результата транскрибации"""
+    global transcription_status
+
+    results = transcription_status.get('results', [])
+    if index < 0 or index >= len(results):
+        return jsonify({'error': 'Неверный индекс'}), 400
+
+    result = results[index]
+    if not result.get('success'):
+        return jsonify({'error': 'Результат недоступен'}), 400
+
+    from flask import make_response
+    text_filename = f"{Path(result['filename']).stem}.txt"
+    response = make_response(result['text'])
+    response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename={text_filename}'
+    return response
+
 @app.route('/api/system-info')
 def api_system_info():
     """Информация о системе"""
