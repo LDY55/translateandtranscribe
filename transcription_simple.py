@@ -6,6 +6,10 @@ import sys
 import subprocess
 import io
 from pathlib import Path
+
+# Папка для сохранения моделей, чтобы не скачивать их повторно
+MODELS_DIR = Path("models")
+MODELS_DIR.mkdir(exist_ok=True)
 from pydub import AudioSegment
 from tqdm import tqdm
 
@@ -75,9 +79,13 @@ class TranscriptionProcessor:
                     torch_dtype=self.torch_dtype,
                     low_cpu_mem_usage=True,
                     use_safetensors=True,
+                    cache_dir=MODELS_DIR,
                 ).to(self.device)
-                
-                self.processor = WhisperProcessor.from_pretrained("antony66/whisper-large-v3-russian")
+
+                self.processor = WhisperProcessor.from_pretrained(
+                    "antony66/whisper-large-v3-russian",
+                    cache_dir=MODELS_DIR,
+                )
                 print("✅ Загружена русская модель Whisper Large V3")
                 
             except Exception as e:
@@ -90,9 +98,13 @@ class TranscriptionProcessor:
                     torch_dtype=self.torch_dtype,
                     low_cpu_mem_usage=True,
                     use_safetensors=True,
+                    cache_dir=MODELS_DIR,
                 ).to(self.device)
-                
-                self.processor = WhisperProcessor.from_pretrained("openai/whisper-large-v3")
+
+                self.processor = WhisperProcessor.from_pretrained(
+                    "openai/whisper-large-v3",
+                    cache_dir=MODELS_DIR,
+                )
                 print("✅ Загружена базовая модель Whisper Large V3")
                 
         except Exception as e:

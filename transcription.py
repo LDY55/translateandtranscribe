@@ -1,6 +1,10 @@
 import io
 import math
 from pathlib import Path
+
+# Папка для хранения скачанных моделей
+MODELS_DIR = Path("models")
+MODELS_DIR.mkdir(exist_ok=True)
 import numpy as np
 from pydub import AudioSegment
 from tqdm import tqdm
@@ -35,9 +39,13 @@ class TranscriptionProcessor:
                 torch_dtype=self.torch_dtype,
                 low_cpu_mem_usage=True,
                 use_safetensors=True,
+                cache_dir=MODELS_DIR,
             ).to(self.device)
-            
-            self.processor = WhisperProcessor.from_pretrained("antony66/whisper-large-v3-russian")
+
+            self.processor = WhisperProcessor.from_pretrained(
+                "antony66/whisper-large-v3-russian",
+                cache_dir=MODELS_DIR,
+            )
             
         except Exception as e:
             # Fallback к базовой модели если специализированная недоступна
@@ -47,9 +55,13 @@ class TranscriptionProcessor:
                     torch_dtype=self.torch_dtype,
                     low_cpu_mem_usage=True,
                     use_safetensors=True,
+                    cache_dir=MODELS_DIR,
                 ).to(self.device)
-                
-                self.processor = WhisperProcessor.from_pretrained("openai/whisper-large-v3")
+
+                self.processor = WhisperProcessor.from_pretrained(
+                    "openai/whisper-large-v3",
+                    cache_dir=MODELS_DIR,
+                )
                 
             except Exception as fallback_e:
                 raise Exception(f"Не удалось загрузить модель Whisper: {str(e)}, fallback error: {str(fallback_e)}")
