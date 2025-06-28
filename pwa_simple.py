@@ -47,8 +47,19 @@ def static_files(filename):
 def api_transcribe():
     """API для транскрибации"""
     try:
-        # Попытка использования улучшенного модуля транскрибации
-        from transcription_simple import TranscriptionProcessor
+        # Проверяем доступность PyTorch перед импортом
+        try:
+            import torch
+            import transformers
+            from transcription_simple import TranscriptionProcessor
+        except ImportError as import_error:
+            # Предлагаем автоматическую установку
+            return jsonify({
+                "success": False,
+                "error": "PyTorch не установлен. Нажмите кнопку ниже для автоматической установки.",
+                "install_available": True,
+                "install_command": "pip install torch transformers --index-url https://download.pytorch.org/whl/cpu"
+            }), 400
         
         files = request.files.getlist('files')
         if not files:
@@ -100,7 +111,8 @@ def api_transcribe():
                 transcription_status['status'] = 'completed'
             except Exception as e:
                 transcription_status['status'] = 'error'
-                transcription_status['error'] = str(e)
+                transcription_status['error'] = f"Ошибка транскрибации: {str(e)}"
+                print(f"Transcription error: {e}")  # Для отладки
         
         import threading
         thread = threading.Thread(target=transcribe_task)
@@ -275,6 +287,47 @@ def api_export_translation():
         "translation": full_translation,
         "filename": "translation.txt"
     })
+
+@app.route('/api/install-pytorch', methods=['POST'])
+def api_install_pytorch():
+    """Установка PyTorch и Transformers"""
+    try:
+        import subprocess
+        import sys
+        
+        print("🔄 Начинаем установку PyTorch...")
+        
+        # Установка PyTorch CPU версии
+        result = subprocess.run([
+            sys.executable, "-m", "pip", "install", 
+            "torch", "transformers", "accelerate",
+            "--index-url", "https://download.pytorch.org/whl/cpu",
+            "--no-cache-dir"
+        ], capture_output=True, text=True, timeout=300)
+        
+        if result.returncode == 0:
+            print("✅ PyTorch установлен успешно")
+            return jsonify({
+                "success": True,
+                "message": "PyTorch успешно установлен! Теперь можно использовать транскрибацию."
+            })
+        else:
+            print(f"❌ Ошибка установки: {result.stderr}")
+            return jsonify({
+                "success": False,
+                "error": f"Ошибка установки: {result.stderr}"
+            }), 500
+            
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            "success": False,
+            "error": "Тайм-аут установки. Попробуйте позже."
+        }), 500
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Ошибка: {str(e)}"
+        }), 500
 
 @app.route('/api/download-transcription')
 def api_download_transcription():

@@ -117,22 +117,40 @@ class TranscriptionProcessor:
             import torch
             import numpy as np
             
+            # Проверка существования файла
+            if not file_path.exists():
+                raise Exception(f"Файл не найден: {file_path}")
+            
             # Чтение аудиофайла
-            with open(file_path, "rb") as f:
-                audio_bytes = f.read()
+            try:
+                with open(file_path, "rb") as f:
+                    audio_bytes = f.read()
+            except Exception as e:
+                raise Exception(f"Ошибка чтения файла: {e}")
             
             # Определение формата файла
             audio_format = file_path.suffix.lower().lstrip('.')
-            if audio_format == 'mp3':
-                audio = AudioSegment.from_mp3(io.BytesIO(audio_bytes))
-            elif audio_format in ['wav', 'wave']:
-                audio = AudioSegment.from_wav(io.BytesIO(audio_bytes))
-            elif audio_format == 'flac':
-                audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format='flac')
-            elif audio_format in ['m4a', 'mp4']:
-                audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format='mp4')
-            else:
-                raise Exception(f"Неподдерживаемый формат аудио: {audio_format}")
+            
+            try:
+                # Создаем новый BytesIO объект для каждого использования
+                audio_io = io.BytesIO(audio_bytes)
+                
+                if audio_format == 'mp3':
+                    audio = AudioSegment.from_mp3(audio_io)
+                elif audio_format in ['wav', 'wave']:
+                    audio = AudioSegment.from_wav(audio_io)
+                elif audio_format == 'flac':
+                    audio = AudioSegment.from_file(audio_io, format='flac')
+                elif audio_format in ['m4a', 'mp4']:
+                    audio = AudioSegment.from_file(audio_io, format='mp4')
+                else:
+                    raise Exception(f"Неподдерживаемый формат аудио: {audio_format}")
+                    
+                # Закрываем BytesIO
+                audio_io.close()
+                
+            except Exception as e:
+                raise Exception(f"Ошибка декодирования аудио: {e}")
             
             # Конвертация в моно 16кГц
             audio = audio.set_channels(1).set_frame_rate(16000)

@@ -204,6 +204,77 @@ class AudioTranslatorApp {
         document.body.appendChild(modal);
     }
 
+    showPyTorchInstallPrompt(errorData) {
+        const instructions = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center;">
+                <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; margin: 20px;">
+                    <h3 style="margin-top: 0; color: #333;">Установка PyTorch для транскрибации</h3>
+                    <div style="line-height: 1.6; color: #555;">
+                        <p>${errorData.error}</p>
+                        <p style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 6px; font-size: 14px; border-left: 4px solid #ffc107;">
+                            ⚠️ <strong>Внимание:</strong> Установка PyTorch займет несколько минут и потребует около 500MB места на диске.
+                        </p>
+                        <p style="padding: 10px; background: #f0f8ff; border-radius: 6px; font-size: 14px;">
+                            После установки будет доступна транскрибация аудио с помощью русской модели Whisper.
+                        </p>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <button id="installPyTorchBtn" style="
+                            padding: 12px 24px; background: #28a745; color: white; margin-right: 10px;
+                            border: none; border-radius: 6px; cursor: pointer; font-size: 16px;
+                        ">Установить PyTorch</button>
+                        <button onclick="this.closest('div').remove()" style="
+                            padding: 12px 24px; background: #6c757d; color: white; 
+                            border: none; border-radius: 6px; cursor: pointer; font-size: 16px;
+                        ">Отмена</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const modal = document.createElement('div');
+        modal.innerHTML = instructions;
+        document.body.appendChild(modal);
+        
+        // Добавляем обработчик для кнопки установки
+        modal.querySelector('#installPyTorchBtn').addEventListener('click', () => {
+            this.installPyTorch(modal);
+        });
+    }
+
+    async installPyTorch(modal) {
+        const installBtn = modal.querySelector('#installPyTorchBtn');
+        const originalText = installBtn.textContent;
+        
+        try {
+            installBtn.disabled = true;
+            installBtn.textContent = 'Установка...';
+            
+            const response = await fetch('/api/install-pytorch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showAlert(result.message, 'success');
+                modal.remove();
+                // Перезагружаем страницу для применения изменений
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                this.showAlert('Ошибка установки: ' + result.error, 'error');
+                installBtn.disabled = false;
+                installBtn.textContent = originalText;
+            }
+            
+        } catch (error) {
+            this.showAlert('Ошибка установки: ' + error.message, 'error');
+            installBtn.disabled = false;
+            installBtn.textContent = originalText;
+        }
+    }
+
     handleFolderSelect(event) {
         const files = Array.from(event.target.files);
         const audioExtensions = ['.mp3', '.wav', '.flac', '.m4a', '.ogg', '.aac', '.wma', '.mp4'];
@@ -299,7 +370,12 @@ class AudioTranslatorApp {
             setTimeout(pollStatus, 1000);
 
         } catch (error) {
-            this.showAlert('Ошибка запуска транскрибации: ' + error.message, 'error');
+            const errorData = error.response?.data;
+            if (errorData?.install_available) {
+                this.showPyTorchInstallPrompt(errorData);
+            } else {
+                this.showAlert('Ошибка запуска транскрибации: ' + error.message, 'error');
+            }
         } finally {
             this.isTranscribing = false;
             transcribeBtn.disabled = false;
