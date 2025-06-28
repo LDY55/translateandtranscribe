@@ -64,58 +64,64 @@ def api_transcribe():
         files = request.files.getlist('files')
         if not files:
             return jsonify({'success': False, 'message': 'Файлы не найдены'})
-        
-        def transcribe_task():
+
+        # Сохраняем файлы во временную папку до запуска потока,
+        # чтобы избежать ошибки "read of closed file" после завершения запроса
+        import re
+        import tempfile
+        saved_files = []
+        for i, file in enumerate(files):
+            if file.filename:
+                safe_filename = re.sub(r'[^\w\-_\.]', '_', file.filename)
+                temp_dir = tempfile.gettempdir()
+                temp_path = os.path.join(temp_dir, f"audio_{i}_{safe_filename}")
+                temp_path = temp_path.replace('\\', '/')
+                file.save(temp_path)
+                saved_files.append({'original': file.filename, 'path': temp_path})
+
+        def transcribe_task(file_list):
             global transcription_status
             transcription_status['status'] = 'processing'
             transcription_status['results'] = []
-            
+
             try:
                 processor = TranscriptionProcessor()
-                
-                for i, file in enumerate(files):
-                    if file.filename:
-                        # Создание безопасного имени файла
-                        import re
-                        import os
-                        import tempfile
-                        safe_filename = re.sub(r'[^\w\-_\.]', '_', file.filename)
-                        # Используем tempfile для кроссплатформенной совместимости
-                        temp_dir = tempfile.gettempdir()
-                        temp_path = os.path.join(temp_dir, f"audio_{i}_{safe_filename}")
-                        temp_path = temp_path.replace('\\', '/')  # Принудительно используем прямые слеши
-                        file.save(temp_path)
-                        
-                        # Транскрибация
-                        result = processor.transcribe_file(temp_path)
-                        
-                        # Создание текстового файла с результатом
-                        text_filename = f"{os.path.splitext(file.filename)[0]}_transcript.txt"
-                        
-                        transcription_status['results'].append({
-                            'filename': file.filename,
-                            'text': result['text'],
-                            'success': result['success'],
-                            'error': result.get('error', ''),
-                            'text_file': text_filename
-                        })
-                        
-                        # Очистка временного файла
-                        try:
-                            os.remove(temp_path)
-                        except:
-                            pass
-                        
-                        transcription_status['progress'] = ((i + 1) / len(files)) * 100
-                
+
+                for i, item in enumerate(file_list):
+                    temp_path = item['path']
+                    original_name = item['original']
+
+                    # Транскрибация
+                    result = processor.transcribe_file(temp_path)
+
+                    # Создание текстового файла с результатом
+                    text_filename = f"{os.path.splitext(original_name)[0]}_transcript.txt"
+
+                    transcription_status['results'].append({
+                        'filename': original_name,
+                        'text': result['text'],
+                        'success': result['success'],
+                        'error': result.get('error', ''),
+                        'text_file': text_filename
+                    })
+
+                    # Очистка временного файла
+                    try:
+                        os.remove(temp_path)
+                    except Exception:
+                        pass
+
+                    transcription_status['progress'] = ((i + 1) / len(file_list)) * 100
+
                 transcription_status['status'] = 'completed'
             except Exception as e:
                 transcription_status['status'] = 'error'
                 transcription_status['error'] = f"Ошибка транскрибации: {str(e)}"
                 print(f"Transcription error: {e}")  # Для отладки
-        
+
         import threading
-        thread = threading.Thread(target=transcribe_task)
+        thread = threading.Thread(target=transcribe_task, args=(saved_files,))
+        thread.daemon = True
         thread.start()
         
         return jsonify({'success': True, 'message': 'Транскрибация запущена'})
