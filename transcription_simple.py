@@ -158,8 +158,7 @@ class TranscriptionProcessor:
                 else:
                     raise Exception(f"Неподдерживаемый формат аудио: {audio_format}")
                     
-                # Закрываем BytesIO
-                audio_io.close()
+                # BytesIO будет автоматически закрыт при сборке мусора
                 
             except Exception as e:
                 raise Exception(f"Ошибка декодирования аудио: {e}")
