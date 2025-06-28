@@ -133,33 +133,21 @@ class TranscriptionProcessor:
             if not file_path.exists():
                 raise Exception(f"Файл не найден: {file_path}")
             
-            # Чтение аудиофайла
-            try:
-                with open(file_path, "rb") as f:
-                    audio_bytes = f.read()
-            except Exception as e:
-                raise Exception(f"Ошибка чтения файла: {e}")
-            
             # Определение формата файла
             audio_format = file_path.suffix.lower().lstrip('.')
-            
+
             try:
-                # Создаем новый BytesIO объект для каждого использования
-                audio_io = io.BytesIO(audio_bytes)
-                
                 if audio_format == 'mp3':
-                    audio = AudioSegment.from_mp3(audio_io)
+                    audio = AudioSegment.from_mp3(file_path)
                 elif audio_format in ['wav', 'wave']:
-                    audio = AudioSegment.from_wav(audio_io)
+                    audio = AudioSegment.from_wav(file_path)
                 elif audio_format == 'flac':
-                    audio = AudioSegment.from_file(audio_io, format='flac')
+                    audio = AudioSegment.from_file(file_path, format='flac')
                 elif audio_format in ['m4a', 'mp4']:
-                    audio = AudioSegment.from_file(audio_io, format='mp4')
+                    audio = AudioSegment.from_file(file_path, format='mp4')
                 else:
                     raise Exception(f"Неподдерживаемый формат аудио: {audio_format}")
-                    
-                # BytesIO будет автоматически закрыт при сборке мусора
-                
+
             except Exception as e:
                 raise Exception(f"Ошибка декодирования аудио: {e}")
             
