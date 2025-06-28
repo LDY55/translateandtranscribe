@@ -1,4 +1,3 @@
-import io
 import math
 from pathlib import Path
 
@@ -79,24 +78,21 @@ class TranscriptionProcessor:
         file_path = Path(file_path)
         
         try:
-            # Чтение аудиофайла
-            with open(file_path, "rb") as f:
-                audio_bytes = f.read()
-            
-            # Определение формата файла
+            # Определение формата файла и чтение при помощи pydub
             audio_format = file_path.suffix.lower().lstrip('.')
+            path_str = str(file_path)
             if audio_format == 'mp3':
-                audio = AudioSegment.from_mp3(io.BytesIO(audio_bytes))
+                audio = AudioSegment.from_mp3(path_str)
             elif audio_format in ['wav', 'wave']:
-                audio = AudioSegment.from_wav(io.BytesIO(audio_bytes))
+                audio = AudioSegment.from_wav(path_str)
             elif audio_format == 'flac':
-                audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="flac")
+                audio = AudioSegment.from_file(path_str, format="flac")
             elif audio_format in ['m4a', 'mp4']:
-                audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="mp4")
+                audio = AudioSegment.from_file(path_str, format="mp4")
             elif audio_format == 'ogg':
-                audio = AudioSegment.from_ogg(io.BytesIO(audio_bytes))
+                audio = AudioSegment.from_ogg(path_str)
             else:
-                audio = AudioSegment.from_file(io.BytesIO(audio_bytes))
+                audio = AudioSegment.from_file(path_str)
             
             # Конвертация в моно и 16kHz
             audio = audio.set_channels(1).set_sample_width(2).set_frame_rate(16000)
