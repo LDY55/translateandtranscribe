@@ -358,10 +358,14 @@ class AudioTranslatorApp {
                     if (status.status === 'completed') {
                         this.displayTranscriptionResults(status.results);
                         this.updateStatus('Транскрибация завершена');
+                        progressBar.style.display = 'none';
+                        progressText.textContent = '';
                         // Показываем кнопку скачивания
                         document.getElementById('downloadTranscriptionBtn').style.display = 'inline-block';
                     } else if (status.status === 'error') {
                         this.showAlert(status.error || 'Ошибка транскрибации', 'error');
+                        progressBar.style.display = 'none';
+                        progressText.textContent = '';
                     } else if (status.status === 'processing') {
                         this.updateStatus(status.status || 'Обработка...');
                         setTimeout(pollStatus, 1000);
@@ -384,8 +388,6 @@ class AudioTranslatorApp {
             this.isTranscribing = false;
             transcribeBtn.disabled = false;
             transcribeBtn.textContent = '🚀 Начать транскрибацию';
-            progressBar.style.display = 'none';
-            progressText.textContent = '';
         }
     }
 
