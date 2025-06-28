@@ -184,8 +184,15 @@ class TranscriptionProcessor:
             all_text = []
             for i, chunk in enumerate(tqdm(chunks, desc="Транскрибация")):
                 # Подготовка входных данных
-                inputs = self.processor(chunk, sampling_rate=16000, return_tensors="pt")
-                input_features = inputs.input_features.to(self.device)
+                inputs = self.processor(
+                    chunk,
+                    sampling_rate=16000,
+                    return_tensors="pt"
+                )
+                input_features = inputs.input_features.to(
+                    device=self.device,
+                    dtype=self.torch_dtype
+                )
                 
                 # Генерация
                 with torch.no_grad():
