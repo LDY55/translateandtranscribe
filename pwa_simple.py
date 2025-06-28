@@ -67,18 +67,26 @@ def api_transcribe():
                         # Создание безопасного имени файла
                         import re
                         import os
+                        import tempfile
                         safe_filename = re.sub(r'[^\w\-_\.]', '_', file.filename)
-                        temp_path = os.path.join("/tmp", f"audio_{i}_{safe_filename}")
+                        # Используем tempfile для кроссплатформенной совместимости
+                        temp_dir = tempfile.gettempdir()
+                        temp_path = os.path.join(temp_dir, f"audio_{i}_{safe_filename}")
+                        temp_path = temp_path.replace('\\', '/')  # Принудительно используем прямые слеши
                         file.save(temp_path)
                         
                         # Транскрибация
                         result = processor.transcribe_file(temp_path)
                         
+                        # Создание текстового файла с результатом
+                        text_filename = f"{os.path.splitext(file.filename)[0]}_transcript.txt"
+                        
                         transcription_status['results'].append({
                             'filename': file.filename,
                             'text': result['text'],
                             'success': result['success'],
-                            'error': result.get('error', '')
+                            'error': result.get('error', ''),
+                            'text_file': text_filename
                         })
                         
                         # Очистка временного файла
@@ -267,6 +275,30 @@ def api_export_translation():
         "translation": full_translation,
         "filename": "translation.txt"
     })
+
+@app.route('/api/download-transcription')
+def api_download_transcription():
+    """Скачивание результатов транскрибации"""
+    global transcription_status
+    
+    if not transcription_status['results']:
+        return jsonify({'error': 'Нет результатов для скачивания'}), 400
+    
+    # Создание объединенного файла с результатами
+    import io
+    from flask import make_response
+    
+    output = io.StringIO()
+    for result in transcription_status['results']:
+        if result['success']:
+            output.write(f"Файл: {result['filename']}\n")
+            output.write(f"Транскрипция:\n{result['text']}\n\n")
+            output.write("-" * 50 + "\n\n")
+    
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+    response.headers['Content-Disposition'] = 'attachment; filename=transcription_results.txt'
+    return response
 
 @app.route('/api/system-info')
 def api_system_info():

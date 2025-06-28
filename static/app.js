@@ -44,6 +44,9 @@ class AudioTranslatorApp {
         // Транскрибация
         document.getElementById('folderInput').addEventListener('change', (e) => this.handleFolderSelect(e));
         document.getElementById('transcribeBtn').addEventListener('click', () => this.startTranscription());
+        document.getElementById('downloadTranscriptionBtn').addEventListener('click', () => {
+            window.open('/api/download-transcription', '_blank');
+        });
         
         // Обработка текста
         document.getElementById('textFileInput').addEventListener('change', (e) => this.handleTextFileSelect(e));
@@ -280,6 +283,8 @@ class AudioTranslatorApp {
                     if (status.status === 'completed') {
                         this.displayTranscriptionResults(status.results);
                         this.updateStatus('Транскрибация завершена');
+                        // Показываем кнопку скачивания
+                        document.getElementById('downloadTranscriptionBtn').style.display = 'inline-block';
                     } else if (status.status === 'error') {
                         this.showAlert(status.error || 'Ошибка транскрибации', 'error');
                     } else if (status.status === 'processing') {
