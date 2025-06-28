@@ -64,8 +64,11 @@ def api_transcribe():
                 
                 for i, file in enumerate(files):
                     if file.filename:
-                        # Сохранение временного файла
-                        temp_path = f"/tmp/{file.filename}"
+                        # Создание безопасного имени файла
+                        import re
+                        import os
+                        safe_filename = re.sub(r'[^\w\-_\.]', '_', file.filename)
+                        temp_path = os.path.join("/tmp", f"audio_{i}_{safe_filename}")
                         file.save(temp_path)
                         
                         # Транскрибация
@@ -77,6 +80,12 @@ def api_transcribe():
                             'success': result['success'],
                             'error': result.get('error', '')
                         })
+                        
+                        # Очистка временного файла
+                        try:
+                            os.remove(temp_path)
+                        except:
+                            pass
                         
                         transcription_status['progress'] = ((i + 1) / len(files)) * 100
                 

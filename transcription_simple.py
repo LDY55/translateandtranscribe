@@ -39,21 +39,24 @@ class TranscriptionProcessor:
             
             # Установка через pip
             try:
+                # Используем CPU-only версию PyTorch для экономии места
                 subprocess.check_call([
                     sys.executable, "-m", "pip", "install", 
-                    "torch", "transformers", 
-                    "--extra-index-url", "https://download.pytorch.org/whl/cpu",
-                    "--quiet"
-                ])
+                    "torch", "transformers", "accelerate",
+                    "--index-url", "https://download.pytorch.org/whl/cpu",
+                    "--no-cache-dir"
+                ], timeout=300)
                 print("✅ Зависимости установлены успешно")
                 
                 # Повторный импорт
                 import torch
                 from transformers import WhisperForConditionalGeneration, WhisperProcessor
                 
-                self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-                self.torch_dtype = torch.float16 if self.device == 'cuda' else torch.float32
+                self.device = 'cpu'  # Принудительно используем CPU
+                self.torch_dtype = torch.float32
                 
+            except subprocess.TimeoutExpired:
+                raise ImportError("Тайм-аут установки зависимостей. Попробуйте позже.")
             except Exception as install_error:
                 raise ImportError(f"Не удалось установить зависимости: {install_error}")
     
