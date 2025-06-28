@@ -252,11 +252,15 @@ class AudioTranscriptionApp:
             
     def scan_audio_files(self, folder_path):
         """Сканирование папки на наличие аудиофайлов"""
-        self.status_var.set("Сканирование папки...")
+        # Запускаем сканирование в отдельном потоке чтобы избежать зависания
+        threading.Thread(target=self._scan_audio_files_thread, args=(folder_path,), daemon=True).start()
+        
+    def _scan_audio_files_thread(self, folder_path):
+        """Сканирование файлов в отдельном потоке"""
+        self.root.after(0, lambda: self.status_var.set("Сканирование папки..."))
         
         # Очищаем список
-        for item in self.files_tree.get_children():
-            self.files_tree.delete(item)
+        self.root.after(0, lambda: [self.files_tree.delete(item) for item in self.files_tree.get_children()])
             
         audio_files = []
         supported_extensions = get_supported_audio_formats()
@@ -266,29 +270,36 @@ class AudioTranscriptionApp:
                 if file_path.suffix.lower() in supported_extensions:
                     audio_files.append(file_path)
                     
-            # Добавляем файлы в список
+            # Добавляем файлы в список (в основном потоке)
             for i, file_path in enumerate(audio_files):
                 try:
-                    file_info = get_audio_file_info(file_path)
-                    duration = file_info.get('duration_formatted', 'N/A')
-                    size = f"{file_info.get('file_size', 0) / (1024*1024):.1f} MB"
-                except:
-                    duration = 'N/A'
-                    size = 'N/A'
+                    # Упрощаем получение информации о файле для избежания зависания
+                    file_size = file_path.stat().st_size if file_path.exists() else 0
+                    size = f"{file_size / (1024*1024):.1f} MB"
                     
-                self.files_tree.insert('', 'end', values=(file_path.name, duration, size))
+                    # Добавляем в список в основном потоке
+                    self.root.after(0, lambda fp=file_path, sz=size: 
+                                  self.files_tree.insert('', 'end', values=(fp.name, 'N/A', sz)))
+                except:
+                    # Если ошибка, добавляем файл без подробной информации
+                    self.root.after(0, lambda fp=file_path: 
+                                  self.files_tree.insert('', 'end', values=(fp.name, 'N/A', 'N/A')))
                 
-            self.transcribe_btn.config(state='normal' if audio_files and TRANSFORMERS_AVAILABLE else 'disabled')
+            # Обновляем состояние кнопки
+            can_transcribe = len(audio_files) > 0 and TRANSFORMERS_AVAILABLE
+            self.root.after(0, lambda: self.transcribe_btn.config(state='normal' if can_transcribe else 'disabled'))
             
+            # Обновляем статус
             if not TRANSFORMERS_AVAILABLE:
-                self.status_var.set("Найдено файлов: " + str(len(audio_files)) + 
-                                  " (Для транскрибации необходимо установить PyTorch и Transformers)")
+                status_msg = f"Найдено файлов: {len(audio_files)} (Для транскрибации необходимо установить PyTorch и Transformers)"
             else:
-                self.status_var.set(f"Найдено аудиофайлов: {len(audio_files)}")
+                status_msg = f"Найдено аудиофайлов: {len(audio_files)}"
+            
+            self.root.after(0, lambda: self.status_var.set(status_msg))
                 
         except Exception as e:
-            messagebox.showerror("Ошибка", f"Ошибка при сканировании папки: {str(e)}")
-            self.status_var.set("Ошибка сканирования")
+            self.root.after(0, lambda: messagebox.showerror("Ошибка", f"Ошибка при сканировании папки: {str(e)}"))
+            self.root.after(0, lambda: self.status_var.set("Ошибка сканирования"))
             
     def start_transcription(self):
         """Запуск транскрибации в отдельном потоке"""

@@ -19,7 +19,6 @@ def create_exe():
         "--onefile",  # Один файл
         "--windowed",  # Без консоли
         "--name", "TranscriptionApp",
-        "--icon", "icon.ico" if os.path.exists("icon.ico") else None,
         "--add-data", "utils.py;.",
         "--add-data", "text_processor.py;.",
         "--add-data", "translation.py;.",
@@ -27,8 +26,9 @@ def create_exe():
         "run_app.py"
     ]
     
-    # Убираем None элементы
-    command = [arg for arg in command if arg is not None]
+    # Добавляем иконку если есть
+    if os.path.exists("icon.ico"):
+        command.extend(["--icon", "icon.ico"])
     
     try:
         subprocess.run(command, check=True)
