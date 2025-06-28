@@ -2,26 +2,25 @@
 
 ## Overview
 
-This is a Python-based Streamlit application that provides audio transcription and text translation capabilities. The app uses Whisper models for speech-to-text conversion and API-based translation services for text translation. It's designed for processing Russian audio content with translation capabilities.
+This project provides a Progressive Web App for audio transcription and text translation. It uses Whisper models for speech-to-text conversion and API-based translation services. The PWA can be installed on the desktop and works offline for cached resources.
 
 ## System Architecture
 
 The application follows a modular architecture with clear separation of concerns:
 
-- **Frontend**: Streamlit web interface for user interaction
+ - **Frontend**: Progressive Web App (Flask-based) for user interaction
 - **Processing Layer**: Separate modules for transcription, translation, and text processing
 - **Configuration Management**: JSON-based settings storage
 - **Model Integration**: Hugging Face Transformers for Whisper models
 
 ## Key Components
 
-### 1. Frontend Layer (`app.py`)
-- **Technology**: Streamlit
-- **Purpose**: Provides web-based UI for file uploads, settings configuration, and result display
-- **Features**: 
-  - Session state management for persistent data
-  - Sidebar for API configuration
-  - File upload interface for audio files
+### 1. Frontend Layer (`pwa_simple.py`)
+ - **Technology**: Flask (PWA)
+ - **Purpose**: Web interface for file uploads, translation settings and model interaction
+ - **Features**:
+   - API endpoints for transcription and translation
+   - Can be installed as a desktop-like application
 
 ### 2. Transcription Module (`transcription.py`)
 - **Technology**: Whisper models via Hugging Face Transformers
@@ -59,12 +58,12 @@ The application follows a modular architecture with clear separation of concerns
 
 ## Data Flow
 
-1. **Audio Input**: User uploads audio files through Streamlit interface
+1. **Audio Input**: User uploads audio files through the web interface
 2. **Preprocessing**: Audio converted to mono 16kHz format using pydub
 3. **Transcription**: Whisper model processes audio chunks to generate text
 4. **Text Processing**: Transcribed text is segmented into manageable chunks
 5. **Translation**: Text chunks sent to configured API for translation
-6. **Output**: Results displayed in Streamlit interface with session persistence
+6. **Output**: Results displayed in the PWA interface
 
 ## External Dependencies
 
@@ -91,7 +90,7 @@ The application is designed for local deployment with the following consideratio
 
 - **Model Storage**: Models downloaded and cached locally via Hugging Face
 - **Configuration**: Settings stored in local `settings.json` file
-- **Session Management**: Streamlit session state for temporary data
+ - **Session Management**: Browser session storage for temporary data
 - **Resource Management**: Automatic GPU/CPU detection and optimization
 
 ### Hardware Requirements
@@ -115,7 +114,7 @@ Preferred communication style: Simple, everyday language.
 - PWA can be installed as desktop app without browser UI
 
 ### June 28, 2025 - Initial setup
-- Created Streamlit application
+- Created initial application prototype
 - Implemented audio transcription with Whisper models
 - Added text translation via API
 - Built text processing with chunking functionality
