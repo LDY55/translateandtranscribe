@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Транскрибация и Перевод</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Приложение для транскрибации аудио и перевода текста">
+    <meta name="theme-color" content="#1f77b4">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="AudioTranslator">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Заголовок -->
+        <header class="app-header">
+            <h1 class="app-title">🎵 Транскрибация и Перевод</h1>
+            <p class="app-subtitle">Профессиональное приложение для обработки аудио и текста</p>
+            <button id="settingsBtn" class="btn btn-outline">⚙️ Настройки</button>
+        </header>
+
+        <!-- Алерты -->
+        <div id="alerts"></div>
+
+        <!-- Навигация по вкладкам -->
+        <div class="tabs">
+            <button class="tab active" data-tab="transcription">
+                🎤 Транскрибация аудио
+            </button>
+            <button class="tab" data-tab="translation">
+                📝 Перевод текста
+            </button>
+        </div>
+
+        <!-- Вкладка транскрибации -->
+        <div id="transcription" class="tab-content active">
+            <div class="card">
+                <h2 class="card-title">🎤 Транскрибация аудиофайлов</h2>
+                
+                <div class="form-group">
+                    <label class="form-label">Выберите аудиофайлы:</label>
+                    <input type="file" id="folderInput" class="form-input" multiple 
+                           accept="audio/*,.mp3,.wav,.flac,.m4a,.ogg,.aac,.wma,.mp4"
+                           webkitdirectory directory>
+                    <small>Поддерживаемые форматы: MP3, WAV, FLAC, M4A, OGG, AAC, WMA, MP4</small>
+                </div>
+
+                <div class="file-list" id="audioFileList">
+                    <p>Перетащите файлы сюда или выберите папку выше</p>
+                </div>
+
+                <div class="form-group">
+                    <button id="transcribeBtn" class="btn btn-primary" disabled>
+                        🚀 Начать транскрибацию
+                    </button>
+                </div>
+
+                <div class="progress-bar" id="transcriptionProgress" style="display: none;">
+                    <div class="progress-fill" style="width: 0%;"></div>
+                </div>
+
+                <div id="transcriptionResults"></div>
+            </div>
+        </div>
+
+        <!-- Вкладка перевода -->
+        <div id="translation" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">📝 Загрузка текстового файла</h2>
+                
+                <div class="form-group">
+                    <label class="form-label">Выберите текстовый файл:</label>
+                    <input type="file" id="textFileInput" class="form-input" 
+                           accept=".txt,.md,.rtf,text/*">
+                    <small>Поддерживаемые форматы: TXT, MD, RTF</small>
+                </div>
+
+                <div class="file-list">
+                    <p>Перетащите текстовый файл сюда или выберите выше</p>
+                </div>
+            </div>
+
+            <div class="card" id="textProcessingCard" style="display: none;">
+                <h2 class="card-title">📖 Обработка текста</h2>
+                
+                <div class="navigation">
+                    <button id="prevChunkBtn" class="btn btn-outline" disabled>
+                        ⬅️ Предыдущий
+                    </button>
+                    <span id="chunkInfo" class="chunk-info">Чанк 0 из 0</span>
+                    <button id="nextChunkBtn" class="btn btn-outline" disabled>
+                        Следующий ➡️
+                    </button>
+                    <button id="translateChunkBtn" class="btn btn-secondary" disabled>
+                        🌐 Перевести чанк
+                    </button>
+                    <button id="translateAllBtn" class="btn btn-primary" disabled>
+                        🚀 Перевести все
+                    </button>
+                </div>
+
+                <div class="text-editor">
+                    <div class="editor-panel">
+                        <div class="editor-header">📄 Оригинальный текст</div>
+                        <div id="originalText" class="editor-content"></div>
+                    </div>
+                    <div class="editor-panel">
+                        <div class="editor-header">🔄 Перевод</div>
+                        <div id="translatedText" class="editor-content">
+                            Нажмите кнопку для перевода
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <button id="exportBtn" class="btn btn-success" disabled>
+                        💾 Экспортировать результаты
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно настроек -->
+        <div id="settingsModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>⚙️ Настройки API</h2>
+                
+                <div class="form-group">
+                    <label class="form-label">API Эндпоинт:</label>
+                    <input type="url" id="apiEndpoint" class="form-input" 
+                           placeholder="https://api.openai.com/v1/chat/completions">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">API Токен:</label>
+                    <input type="password" id="apiToken" class="form-input" 
+                           placeholder="Введите ваш API токен">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Модель:</label>
+                    <input type="text" id="apiModel" class="form-input" 
+                           value="gpt-3.5-turbo" placeholder="gpt-3.5-turbo">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Системный промпт:</label>
+                    <textarea id="systemPrompt" class="form-textarea" 
+                              placeholder="Переведи следующий текст на русский язык. Сохрани структуру и стиль оригинала."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <button onclick="app.saveSettings()" class="btn btn-primary">
+                        💾 Сохранить
+                    </button>
+                    <button onclick="app.hideSettingsModal()" class="btn btn-outline">
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Баннер установки PWA -->
+        <div id="installBanner" class="install-banner">
+            <div>
+                <strong>Установить приложение</strong>
+                <p>Добавьте на рабочий стол для быстрого доступа</p>
+            </div>
+            <div>
+                <button id="installBtn" class="btn">Установить</button>
+                <button onclick="this.parentElement.parentElement.style.display='none'" class="btn">
+                    Скрыть
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Статусная строка -->
+    <div class="status-bar">
+        <span id="statusText">Загрузка приложения...</span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/app.js"></script>
+    
+    <style>
+        /* Дополнительные стили для модального окна */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+
+        /* Улучшенные стили для редактора */
+        .editor-content {
+            white-space: pre-wrap;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Responsive для модального окна */
+        @media (max-width: 768px) {
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+                margin: 10px;
+            }
+        }
+    </style>
+</body>
+</html>

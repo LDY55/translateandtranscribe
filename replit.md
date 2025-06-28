@@ -105,5 +105,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
-Changelog:
-- June 28, 2025. Initial setup
+### June 28, 2025 - PWA Implementation
+- Added Progressive Web App version for Windows desktop installation
+- Created Flask-based web server with modern REST API
+- Implemented Service Worker for offline caching
+- Added manifest.json for PWA installation capability
+- Built responsive web interface with drag-and-drop support
+- Maintained all original functionality (transcription + translation)
+- PWA can be installed as desktop app without browser UI
+
+### June 28, 2025 - Initial setup
+- Created Streamlit application
+- Implemented audio transcription with Whisper models
+- Added text translation via API
+- Built text processing with chunking functionality
