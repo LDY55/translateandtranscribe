@@ -386,21 +386,29 @@ class AudioTranslatorApp {
 
     displayTranscriptionResults(results) {
         const resultsDiv = document.getElementById('transcriptionResults');
-        
+
         resultsDiv.innerHTML = `
             <h3>Результаты транскрибации</h3>
             <div class="results-list">
-                ${results.map(result => `
+                ${results.map((result, index) => `
                     <div class="result-item ${result.success ? 'success' : 'error'}">
                         <h4>${result.filename}</h4>
-                        ${result.success ? 
-                            `<div class="transcription-text">${result.text}</div>` : 
+                        ${result.success ?
+                            `<div class="transcription-text">${result.text}</div>
+                             <button class="btn btn-outline download-txt" data-index="${index}">💾 Скачать TXT</button>` :
                             `<div class="error-text">Ошибка: ${result.error}</div>`
                         }
                     </div>
                 `).join('')}
             </div>
         `;
+
+        resultsDiv.querySelectorAll('.download-txt').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = btn.dataset.index;
+                window.open('/api/download-transcription/' + idx, '_blank');
+            });
+        });
     }
 
     async handleTextFileSelect(event) {
