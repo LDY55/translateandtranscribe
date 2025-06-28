@@ -18,20 +18,11 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Streamlit App"
+args = "install_dependencies"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "install_dependencies"
-
-[[workflows.workflow]]
-name = "Streamlit App"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "uv run streamlit run app.py --server.port 5000"
-waitForPort = 5000
+args = "PWA App"
 
 [[workflows.workflow]]
 name = "install_dependencies"
@@ -40,6 +31,15 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "uv add torch transformers pydub tqdm nltk requests numpy"
+
+[[workflows.workflow]]
+name = "PWA App"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python -m pip install flask && python pwa_simple.py"
+waitForPort = 5000
 
 [[ports]]
 localPort = 5000

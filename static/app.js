@@ -1,19 +1,21 @@
-// PWA JavaScript функциональность
 class AudioTranslatorApp {
     constructor() {
-        this.currentTab = 'transcription';
-        this.textChunks = [];
-        this.currentChunkIndex = 0;
+        this.currentChunk = 0;
+        this.chunks = [];
         this.translations = {};
-        this.settings = this.loadSettings();
-        this.init();
+        this.audioFiles = [];
+        this.deferredPrompt = null;
+        this.isTranslating = false;
+        this.isTranscribing = false;
     }
 
     init() {
         this.setupTabs();
         this.setupEventListeners();
+        this.setupDragAndDrop();
         this.setupPWA();
-        this.updateStatus('Приложение готово к работе');
+        this.loadSettings();
+        this.updateStatus("Приложение готово к работе");
     }
 
     setupTabs() {
@@ -22,464 +24,551 @@ class AudioTranslatorApp {
 
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
-                const tabId = tab.dataset.tab;
+                const targetTab = tab.dataset.tab;
                 
-                // Удаляем активные классы
+                // Убираем активные классы
                 tabs.forEach(t => t.classList.remove('active'));
                 tabContents.forEach(tc => tc.classList.remove('active'));
                 
                 // Добавляем активные классы
                 tab.classList.add('active');
-                document.getElementById(tabId).classList.add('active');
-                
-                this.currentTab = tabId;
+                document.getElementById(targetTab).classList.add('active');
             });
         });
     }
 
     setupEventListeners() {
-        // Настройки API
-        document.getElementById('settingsBtn').addEventListener('click', () => {
-            this.showSettingsModal();
-        });
-
-        // Выбор папки для аудио
-        document.getElementById('folderInput').addEventListener('change', (e) => {
-            this.handleFolderSelect(e);
-        });
-
-        // Запуск транскрибации
-        document.getElementById('transcribeBtn').addEventListener('click', () => {
-            this.startTranscription();
-        });
-
-        // Загрузка текстового файла
-        document.getElementById('textFileInput').addEventListener('change', (e) => {
-            this.handleTextFileSelect(e);
-        });
-
+        // Кнопки навигации
+        document.getElementById('settingsBtn').addEventListener('click', () => this.showSettingsModal());
+        
+        // Транскрибация
+        document.getElementById('folderInput').addEventListener('change', (e) => this.handleFolderSelect(e));
+        document.getElementById('transcribeBtn').addEventListener('click', () => this.startTranscription());
+        
+        // Обработка текста
+        document.getElementById('textFileInput').addEventListener('change', (e) => this.handleTextFileSelect(e));
+        
         // Навигация по чанкам
-        document.getElementById('prevChunkBtn').addEventListener('click', () => {
-            this.navigateChunk(-1);
-        });
-
-        document.getElementById('nextChunkBtn').addEventListener('click', () => {
-            this.navigateChunk(1);
-        });
-
+        document.getElementById('prevChunkBtn').addEventListener('click', () => this.navigateChunk(-1));
+        document.getElementById('nextChunkBtn').addEventListener('click', () => this.navigateChunk(1));
+        
         // Перевод
-        document.getElementById('translateChunkBtn').addEventListener('click', () => {
-            this.translateCurrentChunk();
+        document.getElementById('translateChunkBtn').addEventListener('click', () => this.translateCurrentChunk());
+        document.getElementById('translateAllBtn').addEventListener('click', () => this.translateAllChunks());
+        document.getElementById('exportBtn').addEventListener('click', () => this.exportTranslation());
+
+        // Закрытие модального окна по клику вне его
+        document.getElementById('settingsModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('settingsModal')) {
+                this.hideSettingsModal();
+            }
         });
 
-        document.getElementById('translateAllBtn').addEventListener('click', () => {
-            this.translateAllChunks();
+        // Закрытие модального окна по ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.getElementById('settingsModal').style.display !== 'none') {
+                this.hideSettingsModal();
+            }
         });
-
-        // Экспорт
-        document.getElementById('exportBtn').addEventListener('click', () => {
-            this.exportTranslation();
-        });
-
-        // Drag & Drop для файлов
-        this.setupDragAndDrop();
     }
 
     setupDragAndDrop() {
-        const dropZones = document.querySelectorAll('.file-list, .form-input[type="file"]');
-        
-        dropZones.forEach(zone => {
-            zone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                zone.classList.add('dragover');
-            });
+        const audioFileList = document.getElementById('audioFileList');
+        const translationTab = document.querySelector('#translation .file-list');
 
-            zone.addEventListener('dragleave', () => {
-                zone.classList.remove('dragover');
-            });
+        // Drag and drop для аудиофайлов
+        audioFileList.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            audioFileList.classList.add('drag-over');
+        });
 
-            zone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                zone.classList.remove('dragover');
-                
-                const files = Array.from(e.dataTransfer.files);
-                this.handleFileDrop(files, zone);
-            });
+        audioFileList.addEventListener('dragleave', () => {
+            audioFileList.classList.remove('drag-over');
+        });
+
+        audioFileList.addEventListener('drop', (e) => {
+            e.preventDefault();
+            audioFileList.classList.remove('drag-over');
+            this.handleFileDrop(e.dataTransfer.files, 'audio');
+        });
+
+        // Drag and drop для текстовых файлов
+        translationTab.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            translationTab.classList.add('drag-over');
+        });
+
+        translationTab.addEventListener('dragleave', () => {
+            translationTab.classList.remove('drag-over');
+        });
+
+        translationTab.addEventListener('drop', (e) => {
+            e.preventDefault();
+            translationTab.classList.remove('drag-over');
+            this.handleFileDrop(e.dataTransfer.files, 'text');
         });
     }
 
     setupPWA() {
         // Регистрация Service Worker
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/static/service-worker.js')
-                    .then(registration => {
-                        console.log('SW зарегистрирован: ', registration);
-                    })
-                    .catch(registrationError => {
-                        console.log('SW ошибка регистрации: ', registrationError);
-                    });
-            });
+            navigator.serviceWorker.register('/static/service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker зарегистрирован:', registration);
+                })
+                .catch(error => {
+                    console.log('Ошибка регистрации Service Worker:', error);
+                });
         }
 
-        // Установка PWA
-        let deferredPrompt;
+        // Обработка события beforeinstallprompt
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
-            deferredPrompt = e;
+            this.deferredPrompt = e;
             this.showInstallBanner();
         });
 
-        // Обработка установки
-        document.getElementById('installBtn')?.addEventListener('click', () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
+        // Кнопка установки
+        document.getElementById('installBtn').addEventListener('click', () => {
+            if (this.deferredPrompt) {
+                this.deferredPrompt.prompt();
+                this.deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
-                        console.log('Пользователь принял установку');
+                        console.log('Пользователь установил PWA');
                         this.hideInstallBanner();
                     }
-                    deferredPrompt = null;
+                    this.deferredPrompt = null;
                 });
             }
         });
+
+        // Проверка, установлено ли приложение
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA установлено');
+            this.hideInstallBanner();
+        });
+
+        // Показываем баннер установки для некоторых браузеров
+        if (window.matchMedia('(display-mode: browser)').matches) {
+            setTimeout(() => this.showInstallBanner(), 3000);
+        }
     }
 
     showInstallBanner() {
         const banner = document.getElementById('installBanner');
-        if (banner) {
-            banner.classList.add('show');
+        if (banner && !window.matchMedia('(display-mode: standalone)').matches) {
+            banner.style.display = 'flex';
         }
     }
 
     hideInstallBanner() {
         const banner = document.getElementById('installBanner');
         if (banner) {
-            banner.classList.remove('show');
+            banner.style.display = 'none';
         }
     }
 
     handleFolderSelect(event) {
         const files = Array.from(event.target.files);
-        const audioFiles = files.filter(file => 
-            file.type.startsWith('audio/') || 
-            ['.mp3', '.wav', '.flac', '.m4a', '.ogg'].some(ext => 
-                file.name.toLowerCase().endsWith(ext)
-            )
+        const audioExtensions = ['.mp3', '.wav', '.flac', '.m4a', '.ogg', '.aac', '.wma', '.mp4'];
+        
+        this.audioFiles = files.filter(file => 
+            audioExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
         );
 
-        this.displayAudioFiles(audioFiles);
-        this.updateStatus(`Найдено ${audioFiles.length} аудиофайлов`);
+        this.displayAudioFiles(this.audioFiles);
     }
 
     displayAudioFiles(files) {
         const fileList = document.getElementById('audioFileList');
-        fileList.innerHTML = '';
-
-        files.forEach(file => {
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item';
-            fileItem.innerHTML = `
-                <span>${file.name}</span>
-                <span>${this.formatFileSize(file.size)}</span>
-            `;
-            fileList.appendChild(fileItem);
-        });
-
-        document.getElementById('transcribeBtn').disabled = files.length === 0;
-    }
-
-    async startTranscription() {
-        const folderInput = document.getElementById('folderInput');
-        const files = Array.from(folderInput.files).filter(file => 
-            file.type.startsWith('audio/') || 
-            ['.mp3', '.wav', '.flac', '.m4a', '.ogg'].some(ext => 
-                file.name.toLowerCase().endsWith(ext)
-            )
-        );
+        const transcribeBtn = document.getElementById('transcribeBtn');
 
         if (files.length === 0) {
-            this.showAlert('Выберите аудиофайлы', 'warning');
+            fileList.innerHTML = '<p>Перетащите аудиофайлы сюда или выберите папку выше</p>';
+            transcribeBtn.disabled = true;
             return;
         }
 
+        fileList.innerHTML = `
+            <h4>Найдено аудиофайлов: ${files.length}</h4>
+            <ul class="file-list-items">
+                ${files.map(file => `
+                    <li class="file-item">
+                        <span class="file-name">${file.name}</span>
+                        <span class="file-size">${this.formatFileSize(file.size)}</span>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+
+        transcribeBtn.disabled = false;
+    }
+
+    async startTranscription() {
+        if (this.isTranscribing || this.audioFiles.length === 0) return;
+
+        this.isTranscribing = true;
         const transcribeBtn = document.getElementById('transcribeBtn');
         const progressBar = document.getElementById('transcriptionProgress');
-        const resultsArea = document.getElementById('transcriptionResults');
+        const resultsDiv = document.getElementById('transcriptionResults');
 
         transcribeBtn.disabled = true;
-        transcribeBtn.innerHTML = '<span class="loading"></span> Обработка...';
-        
+        transcribeBtn.textContent = 'Транскрибация...';
         progressBar.style.display = 'block';
-        resultsArea.innerHTML = '';
+        resultsDiv.innerHTML = '';
+
+        const formData = new FormData();
+        this.audioFiles.forEach(file => {
+            formData.append('files', file);
+        });
 
         try {
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                this.updateStatus(`Обработка: ${file.name}`);
-                
-                // Обновляем прогресс
-                const progress = ((i + 1) / files.length) * 100;
-                document.querySelector('.progress-fill').style.width = `${progress}%`;
+            const response = await fetch('/api/transcribe', {
+                method: 'POST',
+                body: formData
+            });
 
-                // Здесь будет вызов API для транскрибации
-                const result = await this.transcribeFile(file);
-                
-                // Добавляем результат
-                const resultDiv = document.createElement('div');
-                resultDiv.className = 'card';
-                resultDiv.innerHTML = `
-                    <h3>${file.name}</h3>
-                    <p>${result.text || 'Ошибка транскрибации'}</p>
-                `;
-                resultsArea.appendChild(resultDiv);
+            const result = await response.json();
+            
+            if (!result.success) {
+                this.showAlert(result.error, 'error');
+                return;
             }
 
-            this.showAlert('Транскрибация завершена!', 'success');
+            // Polling для получения статуса
+            const pollStatus = async () => {
+                try {
+                    const statusResponse = await fetch('/api/transcription-status');
+                    const status = await statusResponse.json();
+
+                    const progressFill = progressBar.querySelector('.progress-fill');
+                    progressFill.style.width = status.progress + '%';
+
+                    if (status.status === 'completed') {
+                        this.displayTranscriptionResults(status.results);
+                        this.updateStatus('Транскрибация завершена');
+                    } else if (status.status === 'error') {
+                        this.showAlert(status.error || 'Ошибка транскрибации', 'error');
+                    } else if (status.status === 'processing') {
+                        this.updateStatus(status.status || 'Обработка...');
+                        setTimeout(pollStatus, 1000);
+                    }
+                } catch (error) {
+                    this.showAlert('Ошибка получения статуса: ' + error.message, 'error');
+                }
+            };
+
+            setTimeout(pollStatus, 1000);
 
         } catch (error) {
-            this.showAlert(`Ошибка: ${error.message}`, 'danger');
+            this.showAlert('Ошибка запуска транскрибации: ' + error.message, 'error');
         } finally {
+            this.isTranscribing = false;
             transcribeBtn.disabled = false;
-            transcribeBtn.innerHTML = '🚀 Начать транскрибацию';
+            transcribeBtn.textContent = '🚀 Начать транскрибацию';
             progressBar.style.display = 'none';
-            this.updateStatus('Готов к работе');
         }
     }
 
-    async transcribeFile(file) {
-        // Mock функция для демонстрации
-        // В реальном приложении здесь будет API вызов
-        return new Promise(resolve => {
-            setTimeout(() => {
-                resolve({
-                    text: `Транскрипция файла ${file.name} (демо версия)`
-                });
-            }, 1000);
-        });
+    displayTranscriptionResults(results) {
+        const resultsDiv = document.getElementById('transcriptionResults');
+        
+        resultsDiv.innerHTML = `
+            <h3>Результаты транскрибации</h3>
+            <div class="results-list">
+                ${results.map(result => `
+                    <div class="result-item ${result.success ? 'success' : 'error'}">
+                        <h4>${result.filename}</h4>
+                        ${result.success ? 
+                            `<div class="transcription-text">${result.text}</div>` : 
+                            `<div class="error-text">Ошибка: ${result.error}</div>`
+                        }
+                    </div>
+                `).join('')}
+            </div>
+        `;
     }
 
-    handleTextFileSelect(event) {
+    async handleTextFileSelect(event) {
         const file = event.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const text = e.target.result;
-            this.processText(text);
+            await this.processText(text);
         };
         reader.readAsText(file);
     }
 
-    processText(text) {
-        // Разбиваем текст на чанки по 30 предложений
-        const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
-        this.textChunks = [];
-        
-        for (let i = 0; i < sentences.length; i += 30) {
-            const chunk = sentences.slice(i, i + 30).join('. ') + '.';
-            this.textChunks.push(chunk);
-        }
+    async processText(text) {
+        try {
+            const response = await fetch('/api/process-text', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    text: text,
+                    sentences_per_chunk: 30
+                })
+            });
 
-        this.currentChunkIndex = 0;
-        this.translations = {};
-        this.updateChunkDisplay();
-        this.updateStatus(`Загружен текст: ${this.textChunks.length} чанков`);
+            const result = await response.json();
+            
+            if (!result.success) {
+                this.showAlert(result.error, 'error');
+                return;
+            }
+
+            this.chunks = result.chunks;
+            this.currentChunk = 0;
+            this.translations = {};
+
+            document.getElementById('textProcessingCard').style.display = 'block';
+            this.updateChunkDisplay();
+            this.updateStatus(`Текст разделен на ${this.chunks.length} частей`);
+
+        } catch (error) {
+            this.showAlert('Ошибка обработки текста: ' + error.message, 'error');
+        }
     }
 
     updateChunkDisplay() {
-        if (this.textChunks.length === 0) return;
+        if (this.chunks.length === 0) return;
 
         const chunkInfo = document.getElementById('chunkInfo');
         const originalText = document.getElementById('originalText');
         const translatedText = document.getElementById('translatedText');
         const prevBtn = document.getElementById('prevChunkBtn');
         const nextBtn = document.getElementById('nextChunkBtn');
+        const translateBtn = document.getElementById('translateChunkBtn');
+        const translateAllBtn = document.getElementById('translateAllBtn');
+        const exportBtn = document.getElementById('exportBtn');
 
-        chunkInfo.textContent = `Чанк ${this.currentChunkIndex + 1} из ${this.textChunks.length}`;
-        originalText.textContent = this.textChunks[this.currentChunkIndex];
-        
-        const translation = this.translations[this.currentChunkIndex];
+        chunkInfo.textContent = `Часть ${this.currentChunk + 1} из ${this.chunks.length}`;
+        originalText.textContent = this.chunks[this.currentChunk];
+
+        const translation = this.translations[this.currentChunk];
         translatedText.textContent = translation || 'Нажмите кнопку для перевода';
 
-        prevBtn.disabled = this.currentChunkIndex === 0;
-        nextBtn.disabled = this.currentChunkIndex >= this.textChunks.length - 1;
-
-        // Обновляем кнопку экспорта
-        const hasTranslations = Object.keys(this.translations).length > 0;
-        document.getElementById('exportBtn').disabled = !hasTranslations;
+        prevBtn.disabled = this.currentChunk === 0;
+        nextBtn.disabled = this.currentChunk === this.chunks.length - 1;
+        translateBtn.disabled = false;
+        translateAllBtn.disabled = false;
+        exportBtn.disabled = Object.keys(this.translations).length === 0;
     }
 
     navigateChunk(direction) {
-        const newIndex = this.currentChunkIndex + direction;
-        if (newIndex >= 0 && newIndex < this.textChunks.length) {
-            this.currentChunkIndex = newIndex;
+        const newChunk = this.currentChunk + direction;
+        if (newChunk >= 0 && newChunk < this.chunks.length) {
+            this.currentChunk = newChunk;
             this.updateChunkDisplay();
         }
     }
 
     async translateCurrentChunk() {
-        if (this.textChunks.length === 0) return;
+        if (this.isTranslating) return;
 
-        if (!this.validateApiSettings()) {
-            this.showSettingsModal();
+        const settings = this.getApiSettings();
+        if (!this.validateApiSettings(settings)) {
+            this.showAlert('Настройте API в настройках', 'warning');
             return;
         }
 
-        const translateBtn = document.getElementById('translateChunkBtn');
-        const originalBtn = translateBtn.innerHTML;
-        
-        translateBtn.disabled = true;
-        translateBtn.innerHTML = '<span class="loading"></span> Перевод...';
-
-        try {
-            const text = this.textChunks[this.currentChunkIndex];
-            const translation = await this.translateText(text);
-            
-            this.translations[this.currentChunkIndex] = translation;
-            this.updateChunkDisplay();
-            this.showAlert('Перевод завершен!', 'success');
-
-        } catch (error) {
-            this.showAlert(`Ошибка перевода: ${error.message}`, 'danger');
-        } finally {
-            translateBtn.disabled = false;
-            translateBtn.innerHTML = originalBtn;
-        }
+        await this.translateText(this.currentChunk, false);
     }
 
     async translateAllChunks() {
-        if (this.textChunks.length === 0) return;
+        if (this.isTranslating) return;
 
-        if (!this.validateApiSettings()) {
-            this.showSettingsModal();
+        const settings = this.getApiSettings();
+        if (!this.validateApiSettings(settings)) {
+            this.showAlert('Настройте API в настройках', 'warning');
             return;
         }
 
-        const translateAllBtn = document.getElementById('translateAllBtn');
-        const originalBtn = translateAllBtn.innerHTML;
-        
-        translateAllBtn.disabled = true;
-        translateAllBtn.innerHTML = '<span class="loading"></span> Перевод всех...';
-
-        try {
-            for (let i = 0; i < this.textChunks.length; i++) {
-                this.updateStatus(`Перевод чанка ${i + 1} из ${this.textChunks.length}`);
-                
-                const text = this.textChunks[i];
-                const translation = await this.translateText(text);
-                
-                this.translations[i] = translation;
-                
-                if (i === this.currentChunkIndex) {
-                    this.updateChunkDisplay();
-                }
-            }
-
-            this.showAlert('Перевод всех чанков завершен!', 'success');
-
-        } catch (error) {
-            this.showAlert(`Ошибка перевода: ${error.message}`, 'danger');
-        } finally {
-            translateAllBtn.disabled = false;
-            translateAllBtn.innerHTML = originalBtn;
-            this.updateStatus('Готов к работе');
-        }
+        await this.translateText(null, true);
     }
 
-    async translateText(text) {
-        // Mock функция для демонстрации
-        // В реальном приложении здесь будет API вызов
-        return new Promise(resolve => {
-            setTimeout(() => {
-                resolve(`Перевод: ${text.substring(0, 100)}... (демо версия)`);
-            }, 1000);
-        });
+    async translateText(chunkIndex, translateAll) {
+        this.isTranslating = true;
+        
+        const translateBtn = document.getElementById('translateChunkBtn');
+        const translateAllBtn = document.getElementById('translateAllBtn');
+        
+        translateBtn.disabled = true;
+        translateAllBtn.disabled = true;
+        translateAllBtn.textContent = translateAll ? 'Перевожу...' : 'Перевести все';
+
+        try {
+            const settings = this.getApiSettings();
+            const response = await fetch('/api/translate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    settings: settings,
+                    chunk_index: chunkIndex,
+                    translate_all: translateAll
+                })
+            });
+
+            const result = await response.json();
+            
+            if (!result.success) {
+                this.showAlert(result.error, 'error');
+                return;
+            }
+
+            // Polling для получения статуса перевода
+            const pollStatus = async () => {
+                try {
+                    const statusResponse = await fetch('/api/translation-status');
+                    const status = await statusResponse.json();
+
+                    if (status.status === 'completed') {
+                        this.translations = { ...this.translations, ...status.translations };
+                        this.updateChunkDisplay();
+                        this.updateStatus(translateAll ? 'Все части переведены' : 'Часть переведена');
+                    } else if (status.status === 'error') {
+                        this.showAlert(status.error || 'Ошибка перевода', 'error');
+                    } else if (status.status === 'processing') {
+                        if (translateAll) {
+                            this.updateStatus(`Перевожу: ${status.progress}%`);
+                        }
+                        setTimeout(pollStatus, 1000);
+                    }
+                } catch (error) {
+                    this.showAlert('Ошибка получения статуса: ' + error.message, 'error');
+                }
+            };
+
+            setTimeout(pollStatus, 1000);
+
+        } catch (error) {
+            this.showAlert('Ошибка перевода: ' + error.message, 'error');
+        } finally {
+            this.isTranslating = false;
+            translateBtn.disabled = false;
+            translateAllBtn.disabled = false;
+            translateAllBtn.textContent = '🚀 Перевести все';
+        }
     }
 
     exportTranslation() {
-        if (Object.keys(this.translations).length === 0) {
-            this.showAlert('Нет переводов для экспорта', 'warning');
-            return;
-        }
-
-        const translatedChunks = [];
-        for (let i = 0; i < this.textChunks.length; i++) {
-            const translation = this.translations[i] || `[Чанк ${i + 1} не переведен]`;
-            translatedChunks.push(translation);
-        }
-
-        const fullTranslation = translatedChunks.join('\n\n');
-        const blob = new Blob([fullTranslation], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'translation.txt';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        this.showAlert('Перевод экспортирован!', 'success');
+        fetch('/api/export-translation')
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    const blob = new Blob([result.translation], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = result.filename;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    this.updateStatus('Файл сохранен');
+                } else {
+                    this.showAlert(result.error, 'error');
+                }
+            })
+            .catch(error => {
+                this.showAlert('Ошибка экспорта: ' + error.message, 'error');
+            });
     }
 
     showSettingsModal() {
-        const modal = document.getElementById('settingsModal');
-        modal.style.display = 'block';
-        
-        // Заполняем текущие настройки
-        document.getElementById('apiEndpoint').value = this.settings.apiEndpoint || '';
-        document.getElementById('apiToken').value = this.settings.apiToken || '';
-        document.getElementById('apiModel').value = this.settings.apiModel || 'gpt-3.5-turbo';
-        document.getElementById('systemPrompt').value = this.settings.systemPrompt || 
-            'Переведи следующий текст на русский язык. Сохрани структуру и стиль оригинала.';
+        document.getElementById('settingsModal').style.display = 'flex';
+        this.loadSettingsInModal();
     }
 
     hideSettingsModal() {
         document.getElementById('settingsModal').style.display = 'none';
     }
 
+    loadSettingsInModal() {
+        const settings = this.getApiSettings();
+        document.getElementById('apiEndpoint').value = settings.api_endpoint || '';
+        document.getElementById('apiToken').value = settings.api_token || '';
+        document.getElementById('apiModel').value = settings.api_model || 'gpt-3.5-turbo';
+        document.getElementById('systemPrompt').value = settings.system_prompt || 'Переведи следующий текст на русский язык. Сохрани структуру и стиль оригинала.';
+    }
+
     saveSettings() {
-        this.settings = {
-            apiEndpoint: document.getElementById('apiEndpoint').value,
-            apiToken: document.getElementById('apiToken').value,
-            apiModel: document.getElementById('apiModel').value,
-            systemPrompt: document.getElementById('systemPrompt').value
+        const settings = {
+            api_endpoint: document.getElementById('apiEndpoint').value,
+            api_token: document.getElementById('apiToken').value,
+            api_model: document.getElementById('apiModel').value,
+            system_prompt: document.getElementById('systemPrompt').value
         };
 
-        localStorage.setItem('audioTranslatorSettings', JSON.stringify(this.settings));
-        this.hideSettingsModal();
-        this.showAlert('Настройки сохранены!', 'success');
+        fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                this.showAlert('Настройки сохранены', 'success');
+                this.hideSettingsModal();
+            } else {
+                this.showAlert(result.error, 'error');
+            }
+        })
+        .catch(error => {
+            this.showAlert('Ошибка сохранения: ' + error.message, 'error');
+        });
     }
 
     loadSettings() {
-        const saved = localStorage.getItem('audioTranslatorSettings');
-        return saved ? JSON.parse(saved) : {};
+        fetch('/api/settings')
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Настройки загружены
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка загрузки настроек:', error);
+            });
     }
 
-    validateApiSettings() {
-        return this.settings.apiEndpoint && this.settings.apiToken;
+    getApiSettings() {
+        // Получаем настройки из формы или localStorage
+        return {
+            api_endpoint: document.getElementById('apiEndpoint')?.value || localStorage.getItem('api_endpoint') || '',
+            api_token: document.getElementById('apiToken')?.value || localStorage.getItem('api_token') || '',
+            api_model: document.getElementById('apiModel')?.value || localStorage.getItem('api_model') || 'gpt-3.5-turbo',
+            system_prompt: document.getElementById('systemPrompt')?.value || localStorage.getItem('system_prompt') || 'Переведи следующий текст на русский язык.'
+        };
+    }
+
+    validateApiSettings(settings) {
+        return settings.api_endpoint && settings.api_token;
     }
 
     handleFileDrop(files, zone) {
-        if (zone.closest('#transcription')) {
-            // Обработка аудиофайлов
-            const audioFiles = files.filter(file => 
-                file.type.startsWith('audio/') || 
-                ['.mp3', '.wav', '.flac', '.m4a', '.ogg'].some(ext => 
-                    file.name.toLowerCase().endsWith(ext)
-                )
+        const fileArray = Array.from(files);
+        
+        if (zone === 'audio') {
+            const audioExtensions = ['.mp3', '.wav', '.flac', '.m4a', '.ogg', '.aac', '.wma', '.mp4'];
+            this.audioFiles = fileArray.filter(file => 
+                audioExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
             );
-            this.displayAudioFiles(audioFiles);
-        } else if (zone.closest('#translation')) {
-            // Обработка текстовых файлов
-            const textFile = files.find(file => 
-                file.type.startsWith('text/') || 
-                ['.txt', '.md', '.rtf'].some(ext => 
-                    file.name.toLowerCase().endsWith(ext)
-                )
+            this.displayAudioFiles(this.audioFiles);
+        } else if (zone === 'text') {
+            const textFile = fileArray.find(file => 
+                file.name.toLowerCase().endsWith('.txt') || 
+                file.name.toLowerCase().endsWith('.md') ||
+                file.name.toLowerCase().endsWith('.rtf') ||
+                file.type.startsWith('text/')
             );
+            
             if (textFile) {
                 const reader = new FileReader();
                 reader.onload = (e) => this.processText(e.target.result);
@@ -500,14 +589,17 @@ class AudioTranslatorApp {
         const alertsContainer = document.getElementById('alerts');
         const alert = document.createElement('div');
         alert.className = `alert alert-${type}`;
-        alert.textContent = message;
+        alert.innerHTML = `
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()">&times;</button>
+        `;
         
         alertsContainer.appendChild(alert);
         
-        // Автоматически скрываем через 5 секунд
+        // Автоматическое удаление через 5 секунд
         setTimeout(() => {
-            if (alert.parentNode) {
-                alert.parentNode.removeChild(alert);
+            if (alert.parentElement) {
+                alert.remove();
             }
         }, 5000);
     }
@@ -519,5 +611,6 @@ class AudioTranslatorApp {
 
 // Инициализация приложения
 document.addEventListener('DOMContentLoaded', () => {
-    new AudioTranslatorApp();
+    window.app = new AudioTranslatorApp();
+    window.app.init();
 });
