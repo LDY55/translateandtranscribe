@@ -317,11 +317,13 @@ class AudioTranslatorApp {
         this.isTranscribing = true;
         const transcribeBtn = document.getElementById('transcribeBtn');
         const progressBar = document.getElementById('transcriptionProgress');
+        const progressText = progressBar.querySelector('.progress-text');
         const resultsDiv = document.getElementById('transcriptionResults');
 
         transcribeBtn.disabled = true;
         transcribeBtn.textContent = 'Транскрибация...';
         progressBar.style.display = 'block';
+        progressText.textContent = '';
         resultsDiv.innerHTML = '';
 
         const formData = new FormData();
@@ -349,7 +351,9 @@ class AudioTranslatorApp {
                     const status = await statusResponse.json();
 
                     const progressFill = progressBar.querySelector('.progress-fill');
+                    const progressText = progressBar.querySelector('.progress-text');
                     progressFill.style.width = status.progress + '%';
+                    progressText.textContent = `${status.status} (${Math.round(status.progress)}%)`;
 
                     if (status.status === 'completed') {
                         this.displayTranscriptionResults(status.results);
@@ -381,6 +385,7 @@ class AudioTranslatorApp {
             transcribeBtn.disabled = false;
             transcribeBtn.textContent = '🚀 Начать транскрибацию';
             progressBar.style.display = 'none';
+            progressText.textContent = '';
         }
     }
 
