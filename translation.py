@@ -53,7 +53,17 @@ class TranslationProcessor:
                     time.sleep(wait_time)
                     continue
                 else:
-                    response.raise_for_status()
+                    error_message = f"HTTP {response.status_code}"
+                    try:
+                        data = response.json()
+                        if isinstance(data, dict):
+                            msg = data.get("error") or data.get("message")
+                            if msg:
+                                error_message += f" - {msg}"
+                    except Exception:
+                        if response.text:
+                            error_message += f" - {response.text}"
+                    raise Exception(f"Ошибка API: {error_message}")
                     
             except requests.exceptions.Timeout:
                 if attempt < retry_count - 1:
