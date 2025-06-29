@@ -318,12 +318,14 @@ class AudioTranslatorApp {
         const transcribeBtn = document.getElementById('transcribeBtn');
         const progressBar = document.getElementById('transcriptionProgress');
         const progressText = progressBar.querySelector('.progress-text');
+        const progressFill = progressBar.querySelector('.progress-fill');
         const resultsDiv = document.getElementById('transcriptionResults');
 
         transcribeBtn.disabled = true;
         transcribeBtn.textContent = 'Транскрибация...';
         progressBar.style.display = 'block';
         progressText.textContent = '';
+        progressFill.style.width = '0%';
         resultsDiv.innerHTML = '';
 
         const formData = new FormData();
@@ -534,6 +536,13 @@ class AudioTranslatorApp {
         translateAllBtn.disabled = true;
         translateAllBtn.textContent = translateAll ? 'Перевожу...' : 'Перевести все';
 
+        const progressBar = document.getElementById('translationProgress');
+        const progressTextElem = progressBar.querySelector('.progress-text');
+        const progressFill = progressBar.querySelector('.progress-fill');
+        progressBar.style.display = 'block';
+        progressTextElem.textContent = '';
+        progressFill.style.width = '0%';
+
         try {
             const settings = this.getApiSettings();
             const response = await fetch('/api/translate', {
@@ -565,11 +574,16 @@ class AudioTranslatorApp {
                         this.translations = { ...this.translations, ...status.translations };
                         this.updateChunkDisplay();
                         this.updateStatus(translateAll ? 'Все части переведены' : 'Часть переведена');
+                        progressBar.style.display = 'none';
+                        progressTextElem.textContent = '';
                     } else if (status.status === 'error') {
                         this.showAlert(status.error || 'Ошибка перевода', 'error');
+                        progressBar.style.display = 'none';
+                        progressTextElem.textContent = '';
                     } else if (status.status === 'processing') {
                         if (translateAll) {
-                            this.updateStatus(`Перевожу: ${status.progress}%`);
+                            progressFill.style.width = status.progress + '%';
+                            progressTextElem.textContent = `${status.progress}%`;
                         }
                         setTimeout(pollStatus, 1000);
                     }
@@ -587,6 +601,8 @@ class AudioTranslatorApp {
             translateBtn.disabled = false;
             translateAllBtn.disabled = false;
             translateAllBtn.textContent = '🚀 Перевести все';
+            progressBar.style.display = 'none';
+            progressTextElem.textContent = '';
         }
     }
 
