@@ -221,20 +221,21 @@ def api_translate():
 
                     try:
                         translation = translator.translate_text(chunk)
-                        translation_status["translations"][i] = translation
+                        translation_status["translations"][str(i)] = translation
                     except Exception as e:
-                        translation_status["translations"][
-                            i
-                        ] = f"[Ошибка перевода: {str(e)}]"
+                        translation_status["translations"][str(i)] = (
+                            f"[Ошибка перевода: {str(e)}]"
+                        )
 
-                    time.sleep(0.1)  # Небольшая пауза между запросами
+                    # Задержка между запросами для избежания лимитов
+                    time.sleep(5)
 
             else:
                 # Переводим один чанк
                 if chunk_index is not None and 0 <= chunk_index < len(chunks):
                     chunk = chunks[chunk_index]
                     translation = translator.translate_text(chunk)
-                    translation_status["translations"][chunk_index] = translation
+                    translation_status["translations"][str(chunk_index)] = translation
                     translation_status["progress"] = 100
 
             translation_status["progress"] = 100
