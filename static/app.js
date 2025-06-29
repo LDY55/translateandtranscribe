@@ -338,9 +338,11 @@ class AudioTranslatorApp {
             });
 
             const result = await response.json();
-            
+
             if (!result.success) {
                 this.showAlert(result.error, 'error');
+                progressBar.style.display = 'none';
+                progressText.textContent = '';
                 return;
             }
 
@@ -384,6 +386,8 @@ class AudioTranslatorApp {
             } else {
                 this.showAlert('Ошибка запуска транскрибации: ' + error.message, 'error');
             }
+            progressBar.style.display = 'none';
+            progressText.textContent = '';
         } finally {
             this.isTranscribing = false;
             transcribeBtn.disabled = false;
