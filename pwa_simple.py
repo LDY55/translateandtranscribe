@@ -102,16 +102,23 @@ def api_transcribe():
             global transcription_status
             transcription_status["status"] = "processing"
             transcription_status["results"] = []
+            transcription_status["progress"] = 0
 
             try:
                 processor = TranscriptionProcessor()
+
+                total_files = len(file_list)
 
                 for i, item in enumerate(file_list):
                     temp_path = item["path"]
                     original_name = item["original"]
 
+                    def chunk_progress(pct, file_index=i):
+                        overall = ((file_index + pct / 100) / total_files) * 100
+                        transcription_status["progress"] = overall
+
                     # Транскрибация
-                    result = processor.transcribe_file(temp_path)
+                    result = processor.transcribe_file(temp_path, progress_callback=chunk_progress)
 
                     # Создание текстового файла с результатом
                     text_filename = (
@@ -134,8 +141,8 @@ def api_transcribe():
                     except Exception:
                         pass
 
-                    transcription_status["progress"] = ((i + 1) / len(file_list)) * 100
 
+                transcription_status["progress"] = 100
                 transcription_status["status"] = "completed"
             except Exception as e:
                 transcription_status["status"] = "error"

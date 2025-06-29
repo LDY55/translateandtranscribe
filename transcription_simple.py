@@ -110,7 +110,7 @@ class TranscriptionProcessor:
         except Exception as e:
             raise Exception(f"Критическая ошибка загрузки модели: {e}")
     
-    def transcribe_file(self, file_path):
+    def transcribe_file(self, file_path, progress_callback=None):
         """
         Транскрибация одного аудиофайла
         
@@ -182,6 +182,7 @@ class TranscriptionProcessor:
             
             # Транскрибация чанков
             all_text = []
+            total_chunks = len(chunks)
             for i, chunk in enumerate(tqdm(chunks, desc="Транскрибация")):
                 # Подготовка входных данных
                 inputs = self.processor(
@@ -211,6 +212,13 @@ class TranscriptionProcessor:
                 )[0]
                 
                 all_text.append(transcription.strip())
+
+                if progress_callback:
+                    progress = ((i + 1) / total_chunks) * 100
+                    try:
+                        progress_callback(progress)
+                    except Exception:
+                        pass
             
             # Объединение результатов
             final_text = " ".join(all_text)
