@@ -87,6 +87,10 @@ class TranslationProcessor:
         Поддерживает различные форматы API (OpenAI, Claude, etc.)
         """
         # Базовый формат для OpenAI-совместимых API
+        estimated_tokens = (len(self.system_prompt) + len(text)) // 3
+        context_limit = 4096
+        available = max(context_limit - estimated_tokens, 1)
+
         payload = {
             "model": self.model,
             "messages": [
@@ -95,11 +99,11 @@ class TranslationProcessor:
                     "content": self.system_prompt
                 },
                 {
-                    "role": "user", 
+                    "role": "user",
                     "content": text
                 }
             ],
-            "max_tokens": 4000,
+            "max_tokens": min(available, 2048),
             "temperature": 0.3
         }
         
