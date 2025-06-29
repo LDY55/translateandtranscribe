@@ -462,6 +462,7 @@ class AudioTranslatorApp {
 
             document.getElementById('textProcessingCard').style.display = 'block';
             this.updateChunkDisplay();
+            this.updateOverallTranslationProgress();
             this.updateStatus(`Текст разделен на ${this.chunks.length} частей`);
 
         } catch (error) {
@@ -492,6 +493,8 @@ class AudioTranslatorApp {
         translateBtn.disabled = false;
         translateAllBtn.disabled = false;
         exportBtn.disabled = Object.keys(this.translations).length === 0;
+
+        this.updateOverallTranslationProgress();
     }
 
     navigateChunk(direction) {
@@ -573,6 +576,7 @@ class AudioTranslatorApp {
                     if (status.status === 'completed') {
                         this.translations = { ...this.translations, ...status.translations };
                         this.updateChunkDisplay();
+                        this.updateOverallTranslationProgress();
                         this.updateStatus(translateAll ? 'Все части переведены' : 'Часть переведена');
                         progressBar.style.display = 'none';
                         progressTextElem.textContent = '';
@@ -584,6 +588,7 @@ class AudioTranslatorApp {
                         if (translateAll) {
                             progressFill.style.width = status.progress + '%';
                             progressTextElem.textContent = `${status.progress}%`;
+                            this.updateOverallTranslationProgress();
                         }
                         setTimeout(pollStatus, 1000);
                     }
@@ -764,6 +769,22 @@ class AudioTranslatorApp {
 
     updateStatus(message) {
         document.getElementById('statusText').textContent = message;
+    }
+
+    updateOverallTranslationProgress() {
+        const bar = document.getElementById('overallTranslationProgress');
+        if (!bar) return;
+
+        const fill = bar.querySelector('.progress-fill');
+        const text = bar.querySelector('.progress-text');
+
+        const total = this.chunks.length;
+        const completed = Object.keys(this.translations).length;
+        const percent = total ? Math.round((completed / total) * 100) : 0;
+
+        bar.style.display = 'block';
+        fill.style.width = percent + '%';
+        text.textContent = percent + '%';
     }
 }
 
