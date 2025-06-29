@@ -261,11 +261,12 @@ def api_translate():
                         translation = translator.translate_text(chunk)
                         translation_status["translations"][str(i)] = translation
                     except Exception as e:
-                        translation_status["translations"][
-                            str(i)
-                        ] = f"[Ошибка перевода: {str(e)}]"
+                        translation_status["translations"][str(i)] = (
+                            f"[Ошибка перевода: {str(e)}]"
+                        )
 
-                    time.sleep(0.1)  # Небольшая пауза между запросами
+                    # Задержка между запросами для избежания лимитов
+                    time.sleep(5)
 
             else:
                 # Переводим один чанк

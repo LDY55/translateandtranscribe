@@ -663,6 +663,11 @@ class AudioTranslatorApp {
         .then(response => response.json())
         .then(result => {
             if (result.success) {
+                // Сохраняем настройки локально
+                localStorage.setItem('api_endpoint', settings.api_endpoint);
+                localStorage.setItem('api_token', settings.api_token);
+                localStorage.setItem('api_model', settings.api_model);
+                localStorage.setItem('system_prompt', settings.system_prompt);
                 this.showAlert('Настройки сохранены', 'success');
                 this.hideSettingsModal();
             } else {
@@ -679,7 +684,11 @@ class AudioTranslatorApp {
             .then(response => response.json())
             .then(result => {
                 if (result.success) {
-                    // Настройки загружены
+                    const s = result.settings;
+                    localStorage.setItem('api_endpoint', s.api_endpoint || '');
+                    localStorage.setItem('api_token', s.api_token || '');
+                    localStorage.setItem('api_model', s.api_model || 'gpt-3.5-turbo');
+                    localStorage.setItem('system_prompt', s.system_prompt || '');
                 }
             })
             .catch(error => {
